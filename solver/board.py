@@ -1,32 +1,5 @@
 from itertools import product
-
-class Cell(object):
-    """ Stores the possible Pieces for any given Cell. """
-
-    def __init__(self, height):
-        self.height = height
-        self.colors = list("RGBPYO")
-        self.solution = None
-
-    def set(self, color):
-        if not color in self.colors:
-            raise Exception("color already eliminated from this cell")
-
-        self.solution = color
-
-    def remove_possible(self, color):
-        if color in self.colors:
-            self.colors.remove(color)
-
-    def possibilities(self):
-        return len(self.colors)
-
-    def __repr__(self):
-        if self.solution:
-            return "%s: __ %s __" % (self.height, self.solution)
-
-        return "%s: <%s>" % (self.height, "".join(self.colors))
-
+from cell import Cell
 
 class Board(object):
 
@@ -54,29 +27,56 @@ class Board(object):
 
         return cells
 
-    def cell_iter(self):
-        for r in self.cells:
-            for c in r:
-                yield c
+    def iter(self):
+        for row, r in enumerate(self.cells):
+            for col, cell in enumerate(r):
+                yield (cell, row, col)
 
-    def set(self, r, c, color):
+    def find(self, _callable):
+        for cell, row, col in self.iter():
+            if _callable(cell, row, col):
+                yield cell, row, col
+
+    def iter_row(self, row):
+        for cell, r, c in self.find(lambda c, _r, _c: _r == row):
+            yield cell
+
+    def iter_col(self, col):
+        for cell, r, c in self.find(lambda c, _r, _c: _c == col):
+            yield cell
+
+    def get(self, r, c):
+        return self.cells[r][c]
+
+    def set_color(self, r, c, color):
         cell = self.cells[r][c]
         height = cell.height
 
-        cell.set(color)
-        self.clear_row(r, color)
-        self.clear_col(c, color)
+        if color not in cell.possibilities:
+            raise Exception("%s already eliminated from this Cell." % color)
 
-        for c in self.cell_iter():
+        cell.set_color(color)
+        self.elim_from_row(r, color)
+        self.elim_from_col(c, color)
+
+        for c, _r, _c in self.iter():
             if c.height == height:
                 c.remove_possible(color)
 
         self.inventory.remove((height, color))
 
-    def clear_row(self, r, color):
-        for c in self.cells[r]:
+
+    def elim_from_row(self, r, color):
+        for c in self.iter_row(r):
             c.remove_possible(color)
 
-    def clear_col(self, c, color):
+    def elim_from_col(self, c, color):
+        for c in self.iter_col(c):
+            c.remove_possible(color)
+
+    def show(self):
         for r in self.cells:
-            r[c].remove_possible(color)
+            for c in r:
+                print "\t", c,
+            print 
+
